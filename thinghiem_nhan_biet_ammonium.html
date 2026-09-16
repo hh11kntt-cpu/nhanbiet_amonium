@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thí nghiệm: Nhận biết ion ammonium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .lab-container {
+            background: linear-gradient(to bottom, #334155, #1e293b);
+            border-radius: 1rem;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Ống nghiệm */
+        .test-tube {
+            width: 45px;
+            height: 200px;
+            border: 3px solid rgba(255, 255, 255, 0.4);
+            border-top: none;
+            border-radius: 0 0 25px 25px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: inset -5px 0 10px rgba(0,0,0,0.2), inset 5px 0 10px rgba(255,255,255,0.2);
+            display: flex;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        /* Miệng ống nghiệm */
+        .test-tube::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            height: 10px;
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+        }
+
+        /* Nhãn dán */
+        .tube-label {
+            position: absolute;
+            top: 30px;
+            background: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+        }
+
+        /* Chất rắn */
+        .solid {
+            position: absolute;
+            bottom: 5px;
+            width: 35px;
+            height: 0px; /* Sẽ tăng lên bằng JS */
+            background: #f8fafc; /* Trắng */
+            border-radius: 0 0 15px 15px;
+            transition: all 1s ease-in-out;
+            opacity: 0;
+        }
+
+        /* Chất lỏng */
+        .liquid {
+            position: absolute;
+            bottom: 3px;
+            width: 39px;
+            height: 0px; /* Sẽ tăng lên bằng JS */
+            background: rgba(200, 230, 255, 0.4);
+            border-radius: 0 0 20px 20px;
+            transition: all 1.5s ease-in-out;
+            opacity: 0;
+            z-index: 5;
+        }
+
+        /* Giấy pH */
+        .ph-paper {
+            position: absolute;
+            top: -40px;
+            width: 15px;
+            height: 40px;
+            background: #fcd34d; /* Màu vàng mặc định */
+            border-radius: 2px;
+            transition: background-color 2s ease-in-out, top 0.5s ease-out;
+            opacity: 0;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        }
+
+        /* Đèn cồn & Ngọn lửa */
+        .spirit-lamp {
+            position: absolute;
+            bottom: 10px;
+            /* Thay vì nằm tự do ở giữa, ta sẽ gán nó vào đúng vị trí của ống nghiệm */
+            /* Ta sẽ xóa position và kích thước đi, thay vào đó dùng flexbox ở HTML */
+            width: 60px;
+            height: 40px;
+            background: #94a3b8;
+            border-radius: 10px 10px 0 0;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        
+        .spirit-lamp::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            width: 20px;
+            height: 10px;
+            background: #cbd5e1;
+        }
+
+        .flame {
+            position: absolute;
+            top: -35px;
+            left: 22px;
+            width: 15px;
+            height: 25px;
+            background: radial-gradient(ellipse at bottom, #3b82f6 0%, #fde047 60%, #ef4444 100%);
+            border-radius: 50% 50% 20% 20%;
+            animation: flicker 0.1s infinite alternate;
+            opacity: 0;
+        }
+
+        @keyframes flicker {
+            0% { transform: scale(1) rotate(-1deg); opacity: 0.9; }
+            100% { transform: scale(1.1) rotate(2deg); opacity: 1; }
+        }
+
+        /* Bọt khí NH3 */
+        .gas-particles {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s;
+        }
+
+        .bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            bottom: 0;
+            animation: rise 2s infinite ease-in;
+        }
+
+        @keyframes rise {
+            0% { transform: translateY(0) scale(0.5); opacity: 1; }
+            50% { transform: translateX(random(-5px, 5px)); }
+            100% { transform: translateY(-160px) scale(1.5); opacity: 0; }
+        }
+
+        .blur-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            backdrop-filter: blur(8px);
+            background: rgba(255, 255, 255, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 20;
+            border-radius: 0.5rem;
+            transition: opacity 0.3s ease;
+        }
+        .blur-overlay:hover {
+            background: rgba(226, 232, 240, 0.8);
+        }
+        .blur-overlay.hidden-overlay {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .step-active {
+            border-left-color: #3b82f6 !important;
+            background-color: #eff6ff !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="w-full text-center py-4 bg-white shadow-sm z-10">
+        <h1 class="text-2xl font-bold text-gray-800">Thí nghiệm: Nhận biết ion ammonium trong phân đạm</h1>
+        <p class="text-sm text-blue-600 font-semibold mt-1">Thiết kế: Giáo viên Nguyễn Mạnh Hưng - Trường THPT Trại Cau</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-grow flex flex-col md:flex-row p-6 gap-6 max-w-7xl mx-auto w-full">
+        /* Main Content */
+    <div class="flex-grow flex flex-col md:flex-row p-6 gap-6 max-w-7xl mx-auto w-full">
+        
+        <!-- Left: Lab Area -->
+        <div class="w-full md:w-1/2 lab-container min-h-[400px] flex items-end justify-around pb-20 pt-16 relative">
+            
+            <!-- Ống nghiệm 1 (KNO3) -->
+            <div class="relative flex flex-col items-center">
+                <div class="ph-paper" id="ph1"></div>
+                <div class="test-tube mb-4" id="tube1" style="transition: transform 0.5s;">
+                    <div class="tube-label">(1)<br>KNO₃</div>
+                    <div class="liquid" id="liquid1"></div>
+                    <div class="solid" id="solid1"></div>
+                </div>
+                <!-- Đèn cồn 1 -->
+                <div class="spirit-lamp" id="lamp1" style="position: relative; bottom: 0;">
+                    <div class="flame" id="flame1"></div>
+                </div>
+            </div>
+
+            <!-- Ống nghiệm 2 (NH4Cl) & Đèn cồn -->
+            <div class="relative flex flex-col items-center">
+                <div class="ph-paper" id="ph2"></div>
+                <div class="test-tube mb-4" id="tube2" style="transition: transform 0.5s;">
+                    <div class="tube-label">(2)<br>NH₄Cl</div>
+                    <div class="gas-particles" id="gas2"></div>
+                    <div class="liquid" id="liquid2"></div>
+                    <div class="solid" id="solid2"></div>
+                </div>
+                
+                <!-- Đèn cồn nằm ngay dưới ống nghiệm 2 -->
+                <div class="spirit-lamp" id="lamp2" style="position: relative; bottom: 0;">
+                    <div class="flame" id="flame2"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="w-full md:w-1/2 bg-white rounded-xl shadow-md p-6 flex flex-col">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Tiến trình thí nghiệm</h2>
+            
+            <div class="space-y-3 flex-grow">
+                <!-- Bước 0 -->
+                <div id="step-0" class="step-card p-3 border-l-4 border-gray-300 bg-gray-50 rounded-r-md transition-colors step-active">
+                    <p class="text-sm text-gray-700"><strong>Chuẩn bị:</strong> Hai ống nghiệm sạch. Ống (1) dán nhãn KNO₃, ống (2) dán nhãn NH₄Cl.</p>
+                </div>
+                
+                <!-- Bước 1 -->
+                <div id="step-1" class="step-card p-3 border-l-4 border-gray-300 bg-gray-50 rounded-r-md transition-colors">
+                    <p class="text-sm text-gray-700"><strong>Bước 1:</strong> Cho khoảng 1g phân bón Potassium nitrate vào ống (1) và 1g Ammonium chloride dạng rắn vào ống (2).</p>
+                </div>
+
+                <!-- Bước 2 -->
+                <div id="step-2" class="step-card p-3 border-l-4 border-gray-300 bg-gray-50 rounded-r-md transition-colors">
+                    <p class="text-sm text-gray-700"><strong>Bước 2:</strong> Thêm vào mỗi ống khoảng 3 mL nước cất, lắc đều cho tan hết (tạo thành dung dịch trong suốt).</p>
+                </div>
+
+                <!-- Bước 3 -->
+                <div id="step-3" class="step-card p-3 border-l-4 border-gray-300 bg-gray-50 rounded-r-md transition-colors">
+                    <p class="text-sm text-gray-700"><strong>Bước 3:</strong> Nhỏ 1 mL dung dịch NaOH 20% vào mỗi ống nghiệm, đun nóng nhẹ trên đèn cồn.</p>
+                </div>
+
+                <!-- Bước 4 -->
+                <div id="step-4" class="step-card p-3 border-l-4 border-gray-300 bg-gray-50 rounded-r-md transition-colors">
+                    <p class="text-sm text-gray-700"><strong>Bước 4:</strong> Đưa hai mẩu giấy chỉ thị pH đã tẩm ướt vào miệng mỗi ống nghiệm và quan sát hiện tượng.</p>
+                </div>
+            </div>
+
+            <div class="mt-6 flex gap-3 justify-center">
+                <button id="prevBtn" onclick="prevStep()" class="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg disabled:opacity-50" disabled>Lùi lại</button>
+                <button id="nextBtn" onclick="nextStep()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg flex-grow shadow-md transition-transform active:scale-95">Thực hiện Bước tiếp theo</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto w-full px-6 pb-10">
+        <div class="bg-amber-50 rounded-xl border border-amber-200 shadow-sm overflow-hidden relative">
+            <div class="p-4 bg-amber-100/50 border-b border-amber-200 flex items-center gap-2">
+                <span class="text-xl">💡</span>
+                <h3 class="font-bold text-amber-900">Quan sát hiện tượng và trả lời câu hỏi:</h3>
+            </div>
+            
+            <div class="p-5">
+                <p class="text-gray-800 font-medium mb-4">Dựa vào dấu hiệu nào để nhận biết ion ammonium? Giải thích bằng phương trình hoá học.</p>
+                
+                <!-- Khu vực đáp án có lớp phủ -->
+                <div class="relative bg-white p-4 rounded-lg border border-gray-200 min-h-[100px]">
+                    <!-- Lớp phủ (Mặt nạ) -->
+                    <div id="answer-overlay" class="blur-overlay" onclick="revealAnswer()">
+                        <div class="flex flex-col items-center text-blue-600">
+                            <svg class="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                            <span class="font-semibold text-sm">Bấm vào đây để xem đáp án</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Nội dung đáp án -->
+                    <div id="answer-content" class="text-gray-700 opacity-20 transition-opacity duration-300">
+                        <ul class="list-disc pl-5 space-y-2 text-sm">
+                            <li><strong>Hiện tượng ở ống (1) - KNO₃:</strong> Không có hiện tượng gì xảy ra, giấy pH không đổi màu.</li>
+                            <li><strong>Hiện tượng ở ống (2) - NH₄Cl:</strong> Có bọt khí thoát ra, khí này có mùi khai và xốc. Khí này làm <strong>mẩu giấy chỉ thị pH ẩm chuyển sang màu xanh</strong>.</li>
+                            <li><strong>Dấu hiệu nhận biết:</strong> Cho tác dụng với dung dịch kiềm (NaOH, KOH...) kèm theo đun nóng nhẹ. Nếu có khí mùi khai bay ra làm xanh giấy quỳ tím/giấy pH ẩm thì chứng tỏ dung dịch có chứa ion Ammonium (NH₄⁺).</li>
+                            <li><strong>Phương trình hóa học:</strong> 
+                                <br>Dạng phân tử: NH₄Cl (aq) + NaOH (aq) <span class="font-bold">→</span> NaCl (aq) + NH₃↑ + H₂O (l)
+                                <br>Dạng ion thu gọn: NH₄⁺ + OH⁻ <span class="font-bold">→</span> NH₃↑ + H₂O
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        const maxSteps = 4;
+
+        // Khởi tạo các bọt khí cho ống 2
+        function initBubbles() {
+            const gasContainer = document.getElementById('gas2');
+            for(let i=0; i<8; i++) {
+                let bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubble.style.width = Math.random() * 4 + 2 + 'px';
+                bubble.style.height = bubble.style.width;
+                bubble.style.left = Math.random() * 80 + 10 + '%';
+                bubble.style.animationDelay = Math.random() * 2 + 's';
+                gasContainer.appendChild(bubble);
+            }
+        }
+        initBubbles();
+
+        function revealAnswer() {
+            document.getElementById('answer-overlay').classList.add('hidden-overlay');
+            document.getElementById('answer-content').style.opacity = '1';
+        }
+
+        function updateUI() {
+            // Cập nhật Buttons
+            document.getElementById('prevBtn').disabled = currentStep === 0;
+            
+            let nextBtn = document.getElementById('nextBtn');
+            if (currentStep === maxSteps) {
+                nextBtn.disabled = true;
+                nextBtn.innerText = "Đã hoàn thành";
+                nextBtn.classList.replace('bg-blue-600', 'bg-gray-400');
+                nextBtn.classList.replace('hover:bg-blue-700', 'hover:bg-gray-400');
+            } else {
+                nextBtn.disabled = false;
+                nextBtn.innerText = "Thực hiện Bước tiếp theo";
+                nextBtn.classList.replace('bg-gray-400', 'bg-blue-600');
+                nextBtn.classList.replace('hover:bg-gray-400', 'hover:bg-blue-700');
+            }
+
+            // Cập nhật CSS thẻ mô tả
+            for(let i=0; i<=maxSteps; i++) {
+                let stepEl = document.getElementById('step-' + i);
+                if(i === currentStep) {
+                    stepEl.classList.add('step-active');
+                } else {
+                    stepEl.classList.remove('step-active');
+                }
+            }
+
+            // --- LOGIC MÔ PHỎNG HÓA HỌC DỰA TRÊN STATE ---
+            
+            let s1 = document.getElementById('solid1');
+            let s2 = document.getElementById('solid2');
+            let l1 = document.getElementById('liquid1');
+            let l2 = document.getElementById('liquid2');
+            let lamp1 = document.getElementById('lamp1');
+            let lamp2 = document.getElementById('lamp2');
+            let flame1 = document.getElementById('flame1');
+            let flame2 = document.getElementById('flame2');
+            let ph1 = document.getElementById('ph1');
+            let ph2 = document.getElementById('ph2');
+            let gas2 = document.getElementById('gas2');
+
+            // Reset tất cả về trạng thái gốc trước
+            s1.style.opacity = '0'; s1.style.height = '0px';
+            s2.style.opacity = '0'; s2.style.height = '0px';
+            l1.style.opacity = '0'; l1.style.height = '0px';
+            l2.style.opacity = '0'; l2.style.height = '0px';
+            lamp1.style.opacity = '0'; flame1.style.opacity = '0';
+            lamp2.style.opacity = '0'; flame2.style.opacity = '0';
+            document.getElementById('tube1').style.transform = 'translateY(0)';
+            document.getElementById('tube2').style.transform = 'translateY(0)';
+            ph1.style.opacity = '0'; ph1.style.top = '-40px'; ph1.style.backgroundColor = '#fcd34d';
+            ph2.style.opacity = '0'; ph2.style.top = '-40px'; ph2.style.backgroundColor = '#fcd34d';
+            gas2.style.opacity = '0';
+
+            // Switch áp dụng trạng thái tích lũy
+            if (currentStep >= 1) {
+                // Đã cho chất rắn
+                s1.style.opacity = '1'; s1.style.height = '20px';
+                s2.style.opacity = '1'; s2.style.height = '20px';
+            }
+            if (currentStep >= 2) {
+                // Đã cho nước -> Chất rắn tan (opacity giảm), nước dâng lên
+                s1.style.opacity = '0';
+                s2.style.opacity = '0';
+                l1.style.opacity = '1'; l1.style.height = '60px';
+                l2.style.opacity = '1'; l2.style.height = '60px';
+            }
+            if (currentStep >= 3) {
+                // Đã cho NaOH và bật đèn cồn
+                l1.style.height = '75px'; // NaOH làm mực nước tăng nhẹ
+                l2.style.height = '75px';
+                lamp1.style.opacity = '1';
+                lamp2.style.opacity = '1';
+                // Nhấc nhẹ ống nghiệm lên để không bị đâm xuyên vào đèn cồn
+                document.getElementById('tube1').style.transform = 'translateY(-10px)';
+                document.getElementById('tube2').style.transform = 'translateY(-10px)';
+                setTimeout(() => { 
+                    if(currentStep >= 3) {
+                        flame1.style.opacity = '1'; 
+                        flame2.style.opacity = '1'; 
+                    }
+                }, 300);
+            }
+            if (currentStep >= 4) {
+                // Đưa giấy pH vào và khí NH3 thoát ra
+                ph1.style.opacity = '1'; ph1.style.top = '-15px';
+                ph2.style.opacity = '1'; ph2.style.top = '-15px';
+                
+                // Bọt khí ở ống 2
+                gas2.style.opacity = '1';
+
+                // Giấy pH ống 2 chuyển sang màu xanh dương sau 1 giây
+                setTimeout(() => {
+                    if (currentStep === 4) {
+                        ph2.style.backgroundColor = '#3b82f6'; // Xanh dương
+                    }
+                }, 1000);
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < maxSteps) {
+                currentStep++;
+                updateUI();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                updateUI();
+            }
+        }
+
+        // Khởi tạo giao diện ban đầu
+        updateUI();
+    </script>
+</body>
+</html>
